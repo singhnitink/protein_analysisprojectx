@@ -1,0 +1,41 @@
+##Installing VMD####
+
+Download VMD from https://www.ks.uiuc.edu/Development/Download/download.cgi?PackageName=VMD
+tar -xvf filename
+cd vmd-directory (change it)
+./configure
+cd src/
+sudo make install
+
+######################
+
+##Installing curl to fetch pdb####
+
+sudo apt  install curl
+
+####################################
+
+##Installing Python#################
+
+sudo apt-get install python3
+sudo apt-get install python3-pip
+sudo -H pip3 install pandas
+sudo -H pip3 install matplotlib
+
+###################################
+
+##Setting up path variable ##
+
+Put below line in your .bashrc file
+**Change the path according to the path of protein analysis directory
+export PATH="/home/singh_nitin/Documents/protein_analysis:$PATH"
+
+#######################################
+
+****GOOD TO GO************************
+chmod +x proteinanalysis
+
+Type "proteinanalysis" in terminal
+
+Written by Nitin Kumar Singh , Dr Mithun Radhakrishna, Dr Manish Agarwal
+Report bugs at singh_nitin@iitgn.ac.in

@@ -1,0 +1,315 @@
+#!/bin/bash
+###***** While copying the python script replace XXXX with protein
+pwd=$(pwd)
+echo "Your working directory is"
+echo $pwd
+cd $pwd
+read -p 'Enter the protein pdb name from RCSB:' namex
+name=${namex^^}
+curl -O https://files.rcsb.org/download/${name}.pdb
+cp ${name}.pdb protein.pdb
+#########VMDSCRIPT###################
+VMDSCRIPT='
+mol new protein.pdb first 0 last 0
+set a [atomselect top "protein and name CA"]
+#set b [$a get {resname}]
+#set c [$a get {structure}]
+set e [$a get {resid resname structure}]
+set d [$a num]
+puts "Total number of residues in protein"
+puts "$d"
+set outfile1 [open "protein_secst_data.dat" w]
+foreach x $e {
+    puts $outfile1 "$x"
+    }
+close $outfile1
+'
+vmd -dispdev text -eofexit << EOF
+$VMDSCRIPT
+EOF
+########################################
+function python_script {
+python3 - <<END
+import math 
+import pandas as pd
+import numpy as np
+import matplotlib
+matplotlib.use('pdf')
+import matplotlib.pyplot as plt
+picture="protein"
+data=pd.read_csv(picture+'_secst_data.dat',header=None,
+                   names=['resnumber','aminoacidname','structure'],delimiter=' ')
+
+##names=['atomno.','chain','ref','residue','structure']
+aminoacid=data['aminoacidname'] ##This is the amino acid name
+resno=data['resnumber'] ##This is residue number fetched from pdb file
+k=data['structure'] ##Secondary structure data, fetched from timeline file
+countsecst=data.shape[0]
+print("Total amino acid residues in protein == %d"%(countsecst))
+
+##Part2:***************************************
+##Counting the total number helices in a protein and number of charged residues in the helices
+namex=['LYS','ARG','HIS','GLU','ASP']
+namep=['LYS','ARG','HIS']
+namen=['GLU','ASP']
+namenonpolar=['GLY','ALA','VAL','CYS','ILE','LEU','MET','PHE','TYR','TRP','PRO']
+namepolar=['SER','THR','ASN','GLN']
+lengthH=[] ##list of length of helices in the protein
+chH=[] ##list of number of charged residues in each helix
+chpH=[] #list of number of positively charged residues in each helix
+chnH=[] #list of number of negativel charged residues in each helix
+percentH=[] #list of percent of charge residues in each helix
+totalH=0
+p=0
+m1=0
+while m1 < countsecst:
+    m2=0
+    charged=0
+    pp=0
+    nn=0
+    misc=0
+    while m1 < countsecst-1:
+        if k[m1]=="H":
+            m2=m2+1
+            if k[m1]=='H' and aminoacid[m1] in namex:
+                charged+=1
+                if aminoacid[m1] in namep:
+                    pp+=1
+                elif aminoacid[m1] in namen:
+                    nn+=1
+                else:
+                    misc+=1
+        else:
+            break
+        m1+=1
+    if m2!=0:
+        lengthH.append(m2)
+        chH.append(charged)
+        chpH.append(pp)
+        chnH.append(nn)
+        percentH.append(charged*100/m2)
+    m1+=1
+    p+=1
+totalH=len(lengthH)
+print("Total number of helices are: %d"%(totalH))
+print('length of helices: %s'%(lengthH))
+print("Total number of charged residues in each helix are: %s"%(chH))
+#################################################
+###Closing part 2
+
+##Part3:***************************************
+##Counting the total number beta sheets in a protein and number of charged residues in the sheets
+lengthB=[] ##list of length of helices in the protein
+chB=[] ##list of number of charged residues in each helix
+chpB=[] #list of number of positively charged residues in each helix
+chnB=[] #list of number of negativel charged residues in each helix
+percentB=[] #list of percent of charge residues in each helix
+totalB=0
+p=0
+m1=0
+while m1 < countsecst:
+    m2=0
+    charged=0
+    pp=0
+    nn=0
+    misc=0
+    while m1 < countsecst-1:
+        if k[m1]=="E":
+            m2=m2+1
+            if k[m1]=='E' and aminoacid[m1] in namex:
+                charged+=1
+                if aminoacid[m1] in namep:
+                    pp+=1
+                    #print(m1)
+                elif aminoacid[m1] in namen:
+                    nn+=1
+                else:
+                    misc+=1
+        else:
+            break
+        m1+=1
+    if m2!=0:
+        lengthB.append(m2)
+        chB.append(charged)
+        chpB.append(pp)
+        chnB.append(nn)
+        percentB.append(charged*100/m2)
+    m1+=1
+    p+=1
+totalB=len(lengthB)
+print("Total number of beta-sheets are: %d"%(totalB))
+print('length of beta-sheet: %s'%(lengthB))
+print("Total number of charged residues in each beta-sheet are: %s"%(chB))
+#################################################
+###Closing part 3
+
+###Part 4
+###  Counting total number of residues in protein with different polarity
+totalch=0 ##total number of charged residues
+totalnonpolar=0
+totalpolar=0
+pp=0 ##total number of positively charged residues
+nn=0 ##total number of negatively charged residues
+m1=0
+posx=[]
+negx=[]
+while m1 < countsecst:
+    if aminoacid[m1] in namex:
+        totalch+=1
+        if aminoacid[m1] in namep:
+             pp+=1
+             #print("pos")
+             #print(m1)
+             #print(aminoacid[m1])
+             posx.append(m1+1)
+             posx.append(aminoacid[m1])
+        elif aminoacid[m1] in namen:
+             #print("NEG")
+             #print(m1)
+             #print(aminoacid[m1])
+             nn+=1
+             negx.append(m1+1)
+             negx.append(aminoacid[m1])
+    elif aminoacid[m1] in namenonpolar:
+        totalnonpolar+=1
+    elif aminoacid[m1] in namepolar:
+        totalpolar+=1
+    m1+=1
+netch=pp-nn
+#print(len(posx))  
+#print(posx)
+#print(len(negx))  
+#print(negx)
+###Closing part4
+
+####OPENING part5
+###Counting residues in helix and beta-seet
+totalrhelix=0
+totalrbeta=0
+m1=0
+while m1 < countsecst:
+    if k[m1]=='H':
+        totalrhelix+=1
+    elif k[m1]=='E':
+        totalrbeta+=1
+    m1+=1
+
+
+######Closing part5
+###********************************************************
+#######Creating a pandas dataframe to store tabular data#####
+table_data=data = [["Total amino acid residues in protein",countsecst],
+                   ["Total number of charged residues",totalch],
+                   ["Total polar residues",totalpolar],
+                   ["Total non-polar residues",totalnonpolar],
+                   ["Net charge on protein",netch],
+                   ["Total number of helices are",totalH],
+                   ["Total number of residues in helix",totalrhelix],
+                   ["Total number of beta-sheets",totalB],
+                   ["Total number of residues in beta-sheets",totalrbeta]]
+                   
+table_df = pd.DataFrame(data, columns = ['Property', 'Number'])
+table_df.index = table_df.index + 1
+from pandas.plotting import table
+#table_plot= plt.figure(figsize=(30,25))
+table_plot = plt.subplot(111, frame_on=False) # no visible frame
+table_plot.xaxis.set_visible(False)  # hide the x axis
+table_plot.yaxis.set_visible(False)  # hide the y axis
+
+table(table_plot, table_df,loc='top',colLoc='center')
+
+plt.savefig('mytable.png',bbox_inches='tight',dpi=600)
+
+#####*******************************************************************************************************
+################################################################
+#####Plotting the barchart for helix data#####
+##
+fig1 = plt.figure()
+##fig.suptitle(picture, fontsize=12,fontweight='bold')
+plot1 = fig1.add_axes([0,0,1,1])
+N=np.arange(totalH)
+width = 0.10
+#plot1.legend(bbox_to_anchor =(-0.10,1.00),loc='upper right',fontsize=8)
+plot1.bar(N+width+1, lengthH, width, color='b', label='Total residues in each helix')
+plot1.bar(N+1, chpH, color='g', width=0.15, label='Positive charge residues')
+plot1.bar(N+1, chnH, color='r', width=0.15,  bottom=chpH, label='Negative charge residues')
+plot1.set_title("Counting helices and charged residues in it "+picture)
+plot1.set_xlabel("Number of helix")
+plot1.set_ylabel("Number of amino acid")
+plot1.legend(loc="upper right")
+##plot1.legend(labels=['Charged-residues', 'Total-residues'])
+fig1.savefig(picture+"_helicalcontent.png",bbox_inches='tight',dpi=300)
+##
+
+#####Plotting the barchart for protein data#####
+##
+labels1=['Total residues', 'charged residues', 'polar', 'non-polar', 'netcharge','Number of hlices','residues in helix', 'Number of Beta sheets', 'residues in beta-sheet']
+plot2_data=[]
+plot2_data.append(countsecst)
+plot2_data.append(totalch)
+plot2_data.append(totalpolar)
+plot2_data.append(totalnonpolar)
+plot2_data.append(netch)
+plot2_data.append(totalH)
+plot2_data.append(totalrhelix)
+plot2_data.append(totalB)
+plot2_data.append(totalrbeta)
+fig2 = plt.figure()
+plot2 = fig2.add_axes([0,0,1,1])
+width = 0.30
+N2=np.arange(len(labels1))
+#plot1.legend(bbox_to_anchor =(-0.10,1.00),loc='upper right',fontsize=8)
+rects1=plot2.bar(N2+width, plot2_data , width, color=['red', 'blue','lavender', 'purple', 'green','magenta','orange','maroon','yellow'])
+plot2.set_title("Protein analysis")
+plot2.set_ylabel("Number")
+plot2.set_xticks(N2)
+plot2.set_xticklabels(labels1,rotation=45)
+def autolabel(rects):
+    """
+    Attach a text label above each bar displaying its height
+    """
+    for rect in rects:
+        height = rect.get_height()
+        plot2.text(rect.get_x() + rect.get_width()/2., 1.05*height,
+                '%.1f' % float(height),
+        ha='center', va='bottom')
+autolabel(rects1)
+##fig2.tight_layout()
+fig2.savefig(picture+"_proteindata.png",bbox_inches='tight',dpi=300)
+##
+
+##Writing data to a single file
+file=open(picture+'_analysisdata.dat','w')
+file.write("Total number of amino acids in protein: %d \n"%(countsecst))
+file.write("Total number of beta-sheets for %s are : %d \n"%(picture,totalB))
+file.write("Total number of helices for %s are : %d \n"%(picture,totalH))
+file.write("Length of each helix is: \n")
+file.write("%s \n"%(lengthH))
+file.write("Total number of charged residues in each helix is: \n")
+file.write("%s \n"%(chH))
+file.write("Percentage charged(positive+negative): \n")
+file.write("%s \n"%(percentH))
+file.write("Total number of positively charged residues in each helix is: \n")
+file.write("%s \n"%(chpH))
+file.write("Total number of negatively charged residues in each helix is: \n")
+file.write("%s \n"%(chnH))
+file.write("**************************************************************************************************** \n")
+file.close()
+
+quit()
+END
+}
+# Call the python code.
+python_script
+#######################################################
+mv protein_secst_data.dat ${name}_secst_data.dat
+mv protein_analysisdata.dat ${name}_analysisdata.dat
+mv protein_helicalcontent.png ${name}_helicalcontent.png
+mv protein_proteindata.png ${name}_proteindata.png
+mv mytable.png ${name}_tableproteindata.png
+echo "*********************************************"
+echo "*********************************************"
+echo "Written by NITIN KUMAR SINGH"
+echo "*********************************************"
+echo "*********************************************"
+echo "ALL-DONE"
